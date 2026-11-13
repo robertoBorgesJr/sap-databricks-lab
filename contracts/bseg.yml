@@ -1,0 +1,91 @@
+table: bseg
+layer: silver
+source_table: BSEG
+
+primary_key:
+  - mandt
+  - bukrs
+  - belnr
+  - gjahr
+  - buzei
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: bukrs
+    type: STRING
+    nullable: false
+    sap_field: BUKRS
+  - name: belnr
+    type: STRING
+    nullable: false
+    sap_field: BELNR
+  - name: gjahr
+    type: STRING
+    nullable: false
+    sap_field: GJAHR
+  - name: buzei
+    type: STRING
+    nullable: false
+    sap_field: BUZEI
+    description: "Linha do item contábil, 3 chars zero-padded (001, 002...)."
+  - name: shkzg
+    type: STRING
+    nullable: true
+    sap_field: SHKZG
+    description: "Indicador de débito/crédito. 'S'=Soll (débito), 'H'=Haben (crédito). Armadilha: trailing space ('S ')."
+  - name: dmbtr
+    type: DECIMAL(18,2)
+    nullable: true
+    sap_field: DMBTR
+    description: "Valor em moeda local — SEMPRE POSITIVO. O sinal está em SHKZG. Pode usar vírgula decimal em extrações legadas."
+  - name: amount
+    type: DECIMAL(18,2)
+    nullable: true
+    sap_field: derived_from_DMBTR+SHKZG
+    description: "DMBTR com sinal aplicado: S→positivo (débito), H→negativo (crédito). Regra de negócio central do BSEG."
+  - name: hkont
+    type: STRING
+    nullable: true
+    sap_field: HKONT
+    description: "Conta contábil, 10 chars. Pode vir sem zero-padding em extrações legadas."
+  - name: kostl
+    type: STRING
+    nullable: true
+    sap_field: KOSTL
+    description: "Centro de custo. Vazio → NULL. Pode ter trailing spaces."
+  - name: mwskz
+    type: STRING
+    nullable: true
+    sap_field: MWSKZ
+    description: "Código de imposto. Vazio → NULL. Armadilha: ' ' (espaço) deve virar NULL."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: dmbtr_positive
+    expression: "dmbtr IS NULL OR dmbtr >= 0"
+    description: "DMBTR é sempre positivo em SAP. Sinal está em SHKZG."
+  - id: shkzg_values
+    expression: "shkzg IS NULL OR shkzg IN ('S', 'H')"
+    description: "Trailing space de SHKZG deve ter sido removido."
+  - id: amount_sign_consistency
+    expression: "(shkzg = 'S' AND amount >= 0) OR (shkzg = 'H' AND amount <= 0) OR shkzg IS NULL"
+    description: "Sinal de amount deve ser consistente com SHKZG."
+  - id: balance_per_doc
+    expression: "SUM(amount) = 0 GROUP BY mandt, bukrs, belnr, gjahr"
+    description: "Soma de débitos e créditos por documento deve ser zero (invariante contábil SAP)."
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"

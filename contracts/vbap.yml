@@ -1,0 +1,84 @@
+table: vbap
+layer: silver
+source_table: VBAP
+
+primary_key:
+  - mandt
+  - vbeln
+  - posnr
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: vbeln
+    type: STRING
+    nullable: false
+    sap_field: VBELN
+    description: "FK para VBAK. Mesmo formato ALPHA."
+  - name: posnr
+    type: STRING
+    nullable: false
+    sap_field: POSNR
+    description: "Posição do item, 6 chars (000010, 000020...). Pode ser '000000' por erro de entrada."
+  - name: matnr
+    type: STRING
+    nullable: true
+    sap_field: MATNR
+    description: "FK para MARA. Pode ter trailing spaces → trim."
+  - name: menge
+    type: DECIMAL(18,3)
+    nullable: true
+    sap_field: MENGE
+    description: "Quantidade. Pode ser negativa (erro de entrada) ou '0.000'."
+  - name: meins
+    type: STRING
+    nullable: true
+    sap_field: MEINS
+    description: "Unidade de medida. Trailing space → trim."
+  - name: netwr
+    type: DECIMAL(18,2)
+    nullable: true
+    sap_field: NETWR
+    description: "Valor líquido do item. Vazio ou vírgula → NULL ou DECIMAL."
+  - name: waerk
+    type: STRING
+    nullable: true
+    sap_field: WAERK
+    description: "Moeda — sempre igual à WAERK do cabeçalho VBAK. Trailing space → trim."
+  - name: werks
+    type: STRING
+    nullable: true
+    sap_field: WERKS
+    description: "Centro (plant)."
+  - name: lgort
+    type: STRING
+    nullable: true
+    sap_field: LGORT
+    description: "Depósito. Vazio → NULL."
+  - name: abgru
+    type: STRING
+    nullable: true
+    sap_field: ABGRU
+    description: "Motivo de rejeição. Vazio → NULL."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: vbeln_posnr_not_null
+    expression: "vbeln IS NOT NULL AND posnr IS NOT NULL"
+  - id: waerk_trimmed
+    expression: "waerk IS NULL OR waerk = TRIM(waerk)"
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"

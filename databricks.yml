@@ -1,0 +1,41 @@
+bundle:
+  name: sap-databricks-lab
+
+# Catálogos nunca são hardcoded no código dos notebooks ou jobs.
+# Todo recurso que referenciar um catálogo deve usar ${var.catalog}
+# ou ${var.bdc_catalog}, conforme o target ativo.
+variables:
+  env:
+    description: "Ambiente de deploy: dev ou prod"
+  catalog:
+    description: "Catálogo principal do lakehouse (sap_lab_dev | sap_lab_prod)"
+  bdc_catalog:
+    description: "Catálogo simulador SAP BDC (sap_bdc_sim_dev | sap_bdc_sim_prod)"
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    variables:
+      env: dev
+      catalog: sap_lab_dev
+      bdc_catalog: sap_bdc_sim_dev
+    workspace:
+      host: https://adb-7405612202710045.5.azuredatabricks.net
+      # Autentica como usuário pessoal via Databricks CLI (perfil DEFAULT).
+      # Em um pipeline CI/CD real, substituir por service principal:
+      #   client_id:     ${var.BUNDLE_SP_CLIENT_ID}
+      #   client_secret: ${var.BUNDLE_SP_CLIENT_SECRET}
+      #   tenant_id:     ${var.BUNDLE_SP_TENANT_ID}
+
+  prod:
+    variables:
+      env: prod
+      catalog: sap_lab_prod
+      bdc_catalog: sap_bdc_sim_prod
+    workspace:
+      host: https://adb-7405612202710045.5.azuredatabricks.net
+      # Prod só recebe deploy pelo bundle — nunca por execução manual de notebook.
+      # Mesmo workspace, catálogos isolados por ambiente.

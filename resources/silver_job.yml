@@ -1,0 +1,81 @@
+resources:
+  jobs:
+    silver_transform:
+      name: "[${var.env}] Silver — MERGE + conversões SAP"
+      description: >
+        Lê da camada bronze, aplica conversões SAP (DATS→DATE, flags, ALPHA,
+        decimais com vírgula) e faz MERGE idempotente nas tabelas silver.
+        Tabelas mestre e TCURR primeiro; VBAK/VBAP/BKPF/BSEG em seguida.
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "1"
+
+      tasks:
+        # --- Tabelas mestre (sem dependências entre si) ---
+        - task_key: silver_kna1
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/silver/kna1.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_mara
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/silver/mara.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_makt
+          environment_key: serverless
+          depends_on:
+            - task_key: silver_mara   # MATNR referencia MARA
+          notebook_task:
+            notebook_path: ../src/silver/makt.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_tcurr
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/silver/tcurr.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        # --- Tabelas transacionais ---
+        - task_key: silver_vbak
+          environment_key: serverless
+          depends_on:
+            - task_key: silver_kna1   # KUNNR referencia KNA1
+          notebook_task:
+            notebook_path: ../src/silver/vbak.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_vbap
+          environment_key: serverless
+          depends_on:
+            - task_key: silver_vbak   # VBELN referencia VBAK
+            - task_key: silver_makt   # MATNR referencia MARA/MAKT
+          notebook_task:
+            notebook_path: ../src/silver/vbap.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_bkpf
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/silver/bkpf.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_bseg
+          environment_key: serverless
+          depends_on:
+            - task_key: silver_bkpf   # BELNR referencia BKPF
+          notebook_task:
+            notebook_path: ../src/silver/bseg.py
+            base_parameters:
+              catalog: "${var.catalog}"

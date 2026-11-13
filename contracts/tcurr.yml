@@ -1,0 +1,86 @@
+table: tcurr
+layer: silver
+source_table: TCURR
+
+primary_key:
+  - mandt
+  - kurst
+  - fcurr
+  - tcurr
+  - gdatu
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: kurst
+    type: STRING
+    nullable: false
+    sap_field: KURST
+    description: "Tipo de taxa: 'M'=padrão, 'B'=compra, 'G'=venda."
+  - name: fcurr
+    type: STRING
+    nullable: false
+    sap_field: FCURR
+    description: "Moeda de origem (USD, EUR)."
+  - name: tcurr
+    type: STRING
+    nullable: false
+    sap_field: TCURR
+    description: "Moeda de destino (BRL, EUR)."
+  - name: gdatu
+    type: STRING
+    nullable: false
+    sap_field: GDATU
+    description: "Data válida de início no formato INVERTIDO SAP: 99999999 - YYYYMMDD. Mantida como string original para referência."
+  - name: valid_from
+    type: DATE
+    nullable: true
+    sap_field: derived_from_GDATU
+    description: "Data real de início da taxa (GDATU invertido). '99999999' → NULL (taxa sem data de fim, open-ended)."
+  - name: ukurs
+    type: DECIMAL(18,5)
+    nullable: true
+    sap_field: UKURS
+    description: "Taxa de câmbio: 1 FCURR = UKURS TCURR. Pode usar vírgula decimal ou trailing spaces."
+  - name: ffact
+    type: INTEGER
+    nullable: true
+    sap_field: FFACT
+    description: "Fator da moeda de origem (normalmente 1)."
+  - name: tfact
+    type: INTEGER
+    nullable: true
+    sap_field: TFACT
+    description: "Fator da moeda de destino (normalmente 1)."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: ukurs_positive
+    expression: "ukurs IS NULL OR ukurs > 0"
+    description: "Taxa de câmbio deve ser positiva."
+  - id: gdatu_no_raw_zero
+    expression: "gdatu <> '00000000'"
+    description: "'00000000' nunca deve aparecer como GDATU válido."
+  - id: valid_from_range
+    expression: "valid_from IS NULL OR valid_from BETWEEN DATE '2015-01-01' AND DATE '2024-12-31'"
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"
+
+notes:
+  - "GDATU armazenado de forma invertida: 99999999 − YYYYMMDD. Ordenação ascendente
+     por GDATU coloca as taxas MAIS RECENTES primeiro — comportamento oposto ao intuitivo.
+     Usar valid_from (derivado) para lógica de negócio."
+  - "Para encontrar a taxa vigente em uma data D: MAX(valid_from) WHERE valid_from <= D."

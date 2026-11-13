@@ -1,0 +1,78 @@
+resources:
+  jobs:
+    bronze_ingest:
+      name: "[${var.env}] Bronze — Auto Loader (availableNow)"
+      description: >
+        Ingere todos os arquivos Parquet da landing zone SAP para a camada bronze
+        usando Auto Loader com trigger availableNow (batch incremental).
+        Um task por tabela, todas em paralelo.
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "1"
+
+      tasks:
+        - task_key: ingest_kna1
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "KNA1"
+
+        - task_key: ingest_mara
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "MARA"
+
+        - task_key: ingest_makt
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "MAKT"
+
+        - task_key: ingest_vbak
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "VBAK"
+
+        - task_key: ingest_vbap
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "VBAP"
+
+        - task_key: ingest_bkpf
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "BKPF"
+
+        - task_key: ingest_bseg
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "BSEG"
+
+        - task_key: ingest_tcurr
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/bronze/ingest.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              table_name: "TCURR"

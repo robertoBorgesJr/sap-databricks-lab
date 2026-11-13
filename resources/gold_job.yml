@@ -1,0 +1,59 @@
+resources:
+  jobs:
+    gold_build:
+      name: "[${var.env}] Gold — Dimensões e Fatos"
+      description: >
+        Constrói o modelo dimensional da gold a partir da silver.
+        Ordem de execução: dimensões independentes primeiro; fatos só
+        começam após as dimensões que os alimentam (dim_date, dim_customer,
+        dim_material). fact_sales_order_item depende também de tcurr na
+        silver, que é lido diretamente — sem tarefa de orquestração extra.
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "1"
+
+      tasks:
+        # ── Dimensões (sem dependências entre si) ─────────────────────────
+        - task_key: dim_date
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/gold/dim_date.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: dim_customer
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/gold/dim_customer.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: dim_material
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/gold/dim_material.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        # ── Fatos (após suas dimensões) ──────────────────────────────────
+        - task_key: fact_sales_order_item
+          environment_key: serverless
+          depends_on:
+            - task_key: dim_date
+            - task_key: dim_customer
+            - task_key: dim_material
+          notebook_task:
+            notebook_path: ../src/gold/fact_sales_order_item.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: fact_gl_line
+          environment_key: serverless
+          depends_on:
+            - task_key: dim_date
+          notebook_task:
+            notebook_path: ../src/gold/fact_gl_line.py
+            base_parameters:
+              catalog: "${var.catalog}"

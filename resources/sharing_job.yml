@@ -1,0 +1,67 @@
+resources:
+  jobs:
+    sharing_build:
+      name: "[${var.env}] Sharing — Simulação BDC / Delta Sharing"
+      description: >
+        Pipeline do lado provedor: popula os data products no catálogo BDC
+        simulado e configura o SHARE + RECIPIENT para open sharing.
+        As tasks de consumo (consumer_read e gold_enriched) requerem que o
+        arquivo de perfil JSON já esteja no volume antes de serem executadas
+        — veja as instruções no notebook share_setup.
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "1"
+
+      tasks:
+        # ── Lado provedor ─────────────────────────────────────────────────
+        - task_key: data_products
+          description: >
+            Popula sap_bdc_sim_<env>.data_products com as tabelas curadas
+            lidas da gold do lakehouse.
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/sharing/data_products.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              bdc_catalog: "${var.bdc_catalog}"
+
+        - task_key: share_setup
+          description: >
+            Cria o SHARE e o RECIPIENT (open sharing). Exibe o activation_link
+            que deve ser usado para baixar o perfil JSON (passo manual).
+          depends_on:
+            - task_key: data_products
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/sharing/share_setup.py
+            base_parameters:
+              bdc_catalog: "${var.bdc_catalog}"
+
+        # ── Lado consumidor (requerem perfil JSON no volume) ──────────────
+        - task_key: consumer_read
+          description: >
+            Lê os data products via deltaSharing connector e valida schema
+            e garantia read-only. Requer perfil JSON no volume (ver share_setup).
+          depends_on:
+            - task_key: share_setup
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/sharing/consumer_read.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              profile_path: "/Volumes/${var.catalog}/ops/sharing_profiles/profile.json"
+
+        - task_key: gold_enriched
+          description: >
+            Demonstra o join entre customer_master do share (zero-copy) e
+            fact_sales_order_item da gold própria.
+          depends_on:
+            - task_key: consumer_read
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../src/sharing/gold_enriched.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              profile_path: "/Volumes/${var.catalog}/ops/sharing_profiles/profile.json"

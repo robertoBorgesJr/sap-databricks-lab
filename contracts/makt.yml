@@ -1,0 +1,49 @@
+table: makt
+layer: silver
+source_table: MAKT
+
+primary_key:
+  - mandt
+  - matnr
+  - spras
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: matnr
+    type: STRING
+    nullable: false
+    sap_field: MATNR
+    description: "FK para MARA. Mesmo formato."
+  - name: spras
+    type: STRING
+    nullable: false
+    sap_field: SPRAS
+    description: "Idioma da descrição: 'P'=português, 'E'=inglês."
+  - name: maktx
+    type: STRING
+    nullable: true
+    sap_field: MAKTX
+    description: "Descrição do material, 40 chars CHAR. Vazio → NULL. Trailing spaces removidos."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: spras_known
+    expression: "spras IN ('P', 'E')"
+    description: "O gerador produz apenas português (P) e inglês (E)."
+  - id: uniqueness
+    expression: "COUNT(*) = COUNT(DISTINCT mandt || matnr || spras)"
+    description: "Chave composta única."

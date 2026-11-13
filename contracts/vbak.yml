@@ -1,0 +1,97 @@
+table: vbak
+layer: silver
+source_table: VBAK
+
+primary_key:
+  - mandt
+  - vbeln
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: vbeln
+    type: STRING
+    nullable: false
+    sap_field: VBELN
+    description: "Número da ordem de venda, 10 chars ALPHA. Numérico ou alfanumérico (ORDxxxx de migração). Trailing spaces → trim."
+  - name: erdat
+    type: DATE
+    nullable: true
+    sap_field: ERDAT
+    description: "Data de criação (DATS → DATE). '00000000' → NULL."
+  - name: ernam
+    type: STRING
+    nullable: true
+    sap_field: ERNAM
+  - name: audat
+    type: DATE
+    nullable: true
+    sap_field: AUDAT
+    description: "Data da ordem. Pode ser anterior a ERDAT (erro de entrada)."
+  - name: vkorg
+    type: STRING
+    nullable: true
+    sap_field: VKORG
+    description: "Organização de vendas (1000, 1001, 2000)."
+  - name: vtweg
+    type: STRING
+    nullable: true
+    sap_field: VTWEG
+    description: "Canal de distribuição."
+  - name: spart
+    type: STRING
+    nullable: true
+    sap_field: SPART
+    description: "Divisão."
+  - name: kunnr
+    type: STRING
+    nullable: true
+    sap_field: KUNNR
+    description: "FK para KNA1. Mesmo formato ALPHA."
+  - name: netwr
+    type: DECIMAL(18,2)
+    nullable: true
+    sap_field: NETWR
+    description: "Valor líquido do cabeçalho. Pode ser vazio, '0.00' ou usar vírgula decimal → NULL ou DECIMAL."
+  - name: waerk
+    type: STRING
+    nullable: true
+    sap_field: WAERK
+    description: "Moeda (BRL 70%, USD 20%, EUR 10%). Trailing space → trim."
+  - name: vkbur
+    type: STRING
+    nullable: true
+    sap_field: VKBUR
+    description: "Escritório de vendas."
+  - name: bstnk
+    type: STRING
+    nullable: true
+    sap_field: BSTNK
+    description: "Número do pedido do cliente. Vazio → NULL."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: vbeln_not_null
+    expression: "vbeln IS NOT NULL AND LENGTH(TRIM(vbeln)) > 0"
+  - id: erdat_not_sap_zero
+    expression: "erdat IS NULL OR erdat BETWEEN DATE '2010-01-01' AND DATE '2030-12-31'"
+  - id: netwr_non_negative
+    expression: "netwr IS NULL OR netwr >= 0"
+  - id: waerk_trimmed
+    expression: "waerk IS NULL OR waerk = TRIM(waerk)"
+    description: "Trailing space de WAERK deve ter sido removido."
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"

@@ -1,0 +1,96 @@
+table: mara
+layer: silver
+source_table: MARA
+
+primary_key:
+  - mandt
+  - matnr
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: matnr
+    type: STRING
+    nullable: false
+    sap_field: MATNR
+    description: "Número do material, 18 chars. 90% numérico zero-padded, 10% alfanumérico (MAT-xxx, EXT-xxx). Pode ter trailing spaces → trim."
+  - name: ersda
+    type: DATE
+    nullable: true
+    sap_field: ERSDA
+    description: "Data de criação (DATS → DATE). '00000000' → NULL."
+  - name: ernam
+    type: STRING
+    nullable: true
+    sap_field: ERNAM
+  - name: mtart
+    type: STRING
+    nullable: true
+    sap_field: MTART
+    description: "Tipo de material (FERT, ROH, HALB, HAWA)."
+  - name: mbrsh
+    type: STRING
+    nullable: true
+    sap_field: MBRSH
+    description: "Setor industrial."
+  - name: matkl
+    type: STRING
+    nullable: true
+    sap_field: MATKL
+    description: "Grupo de materiais. Vazio → NULL."
+  - name: meins
+    type: STRING
+    nullable: true
+    sap_field: MEINS
+    description: "Unidade de medida base. Pode ter espaço extra ('ST ') → trim."
+  - name: brgew
+    type: DECIMAL(18,3)
+    nullable: true
+    sap_field: BRGEW
+    description: "Peso bruto. Pode ser vazio, '0.000' ou usar vírgula decimal → NULL ou DECIMAL."
+  - name: gewei
+    type: STRING
+    nullable: true
+    sap_field: GEWEI
+    description: "Unidade de peso (KG, G, LB)."
+  - name: ntgew
+    type: DECIMAL(18,3)
+    nullable: true
+    sap_field: NTGEW
+    description: "Peso líquido. Mesmo tratamento que BRGEW."
+  - name: lvorm
+    type: STRING
+    nullable: true
+    sap_field: LVORM
+    description: "Flag de exclusão SAP original. Armadilha: ' ' (espaço) = ''."
+  - name: is_logically_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_LVORM
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: matnr_not_null
+    expression: "matnr IS NOT NULL AND LENGTH(TRIM(matnr)) > 0"
+  - id: ersda_not_sap_zero
+    expression: "ersda IS NULL OR ersda BETWEEN DATE '2010-01-01' AND DATE '2030-12-31'"
+  - id: brgew_non_negative
+    expression: "brgew IS NULL OR brgew >= 0"
+  - id: lvorm_normalized
+    expression: "lvorm IS NULL OR lvorm IN ('X', '')"
+    description: "Espaço normalizado para ''."
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"

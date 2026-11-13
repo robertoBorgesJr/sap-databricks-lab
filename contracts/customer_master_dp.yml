@@ -1,0 +1,72 @@
+table: customer_master
+layer: data_product
+catalog: sap_bdc_sim
+schema: data_products
+description: >
+  Mestre de clientes curado publicado via Delta Sharing (simulação BDC).
+  Fonte: sap_lab_<env>.gold.dim_customer.
+  Inclui clientes ativos e marcados para exclusão; exclui apenas deletados fisicamente.
+  Sem campos técnicos SAP — expõe apenas atributos de negócio.
+
+primary_key:
+  - customer_id
+
+schema:
+  - name: customer_id
+    type: STRING
+    nullable: false
+    sap_field: KUNNR
+    description: "Número do cliente (formato com zeros à esquerda, 10 chars)."
+  - name: customer_name
+    type: STRING
+    nullable: true
+    sap_field: NAME1
+    description: "Razão social."
+  - name: country
+    type: STRING
+    nullable: true
+    sap_field: LAND1
+    description: "País (BR)."
+  - name: city
+    type: STRING
+    nullable: true
+    sap_field: ORT01
+    description: "Cidade."
+  - name: postal_code
+    type: STRING
+    nullable: true
+    sap_field: PSTLZ
+    description: "CEP."
+  - name: tax_id_cnpj
+    type: STRING
+    nullable: true
+    sap_field: STCD1
+    description: "CNPJ (14 dígitos, fictício no laboratório)."
+  - name: customer_status
+    type: STRING
+    nullable: false
+    description: "ACTIVE | MARKED_FOR_DELETION. Derivado de LOEVM na silver."
+  - name: published_at
+    type: TIMESTAMP
+    nullable: false
+    description: "Timestamp da última publicação neste data product."
+
+quality_rules:
+  - id: no_mandt_column
+    description: "MANDT não deve existir como coluna — é campo técnico SAP."
+  - id: no_cdc_columns
+    description: "Colunas _op, _seq, is_deleted, deleted_at, loevm não devem existir."
+  - id: customer_id_not_null
+    expression: "customer_id IS NOT NULL AND LENGTH(TRIM(customer_id)) > 0"
+  - id: customer_id_unique
+    expression: "COUNT(*) = COUNT(DISTINCT customer_id)"
+    description: "Chave customer_id deve ser única."
+  - id: customer_status_valid
+    expression: "customer_status IN ('ACTIVE', 'MARKED_FOR_DELETION')"
+    description: "Apenas valores definidos do enum de status."
+  - id: published_at_not_null
+    expression: "published_at IS NOT NULL"
+  - id: no_physically_deleted
+    description: >
+      Registros com is_deleted=true (exclusão física via CDC) são excluídos antes
+      da publicação. O data product deve conter apenas clientes ainda presentes no SAP.

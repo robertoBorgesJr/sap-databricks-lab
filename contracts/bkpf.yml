@@ -1,0 +1,93 @@
+table: bkpf
+layer: silver
+source_table: BKPF
+
+primary_key:
+  - mandt
+  - bukrs
+  - belnr
+  - gjahr
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+  - name: bukrs
+    type: STRING
+    nullable: false
+    sap_field: BUKRS
+    description: "Código da empresa (company code). Apenas '1000' neste lab."
+  - name: belnr
+    type: STRING
+    nullable: false
+    sap_field: BELNR
+    description: "Número do documento contábil, 10 chars. Trailing spaces → trim."
+  - name: gjahr
+    type: STRING
+    nullable: false
+    sap_field: GJAHR
+    description: "Exercício fiscal (ano, 4 chars)."
+  - name: bldat
+    type: DATE
+    nullable: true
+    sap_field: BLDAT
+    description: "Data do documento (DATS → DATE). '00000000' → NULL."
+  - name: budat
+    type: DATE
+    nullable: true
+    sap_field: BUDAT
+    description: "Data de lançamento. BUDAT >= BLDAT na maioria dos casos."
+  - name: monat
+    type: STRING
+    nullable: true
+    sap_field: MONAT
+    description: "Período contábil (mês, 2 chars)."
+  - name: bktxt
+    type: STRING
+    nullable: true
+    sap_field: BKTXT
+    description: "Texto do cabeçalho. Leading/trailing spaces → trim. Vazio → NULL."
+  - name: usnam
+    type: STRING
+    nullable: true
+    sap_field: USNAM
+    description: "Usuário que lançou."
+  - name: bstat
+    type: STRING
+    nullable: true
+    sap_field: BSTAT
+    description: "Status do documento (vazio=lançado, 'V'=estornado). Armadilha: ' ' → NULL."
+  - name: waers
+    type: STRING
+    nullable: true
+    sap_field: WAERS
+    description: "Moeda do documento. Trailing space → trim."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+  - id: belnr_not_null
+    expression: "belnr IS NOT NULL AND LENGTH(TRIM(belnr)) > 0"
+  - id: bldat_not_sap_zero
+    expression: "bldat IS NULL OR bldat BETWEEN DATE '2010-01-01' AND DATE '2030-12-31'"
+  - id: budat_not_null
+    expression: "budat IS NOT NULL"
+    description: "Data de lançamento deve sempre existir para documentos postados."
+  - id: waers_trimmed
+    expression: "waers IS NULL OR waers = TRIM(waers)"
+  - id: bstat_normalized
+    expression: "bstat IS NULL OR bstat IN ('', 'V')"
+    description: "Espaço (' ') normalizado para NULL."
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"

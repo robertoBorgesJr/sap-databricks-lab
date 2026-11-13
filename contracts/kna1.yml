@@ -1,0 +1,123 @@
+table: kna1
+layer: silver
+source_table: KNA1
+
+primary_key:
+  - mandt
+  - kunnr
+
+schema:
+  - name: mandt
+    type: STRING
+    nullable: false
+    sap_field: MANDT
+    description: "Mandante SAP — filtrado para '100' em silver"
+  - name: kunnr
+    type: STRING
+    nullable: false
+    sap_field: KUNNR
+    description: "Número do cliente, 10 chars ALPHA. Numérico: zero-padded. Alfanumérico (migração): mantido como veio."
+  - name: land1
+    type: STRING
+    nullable: true
+    sap_field: LAND1
+    description: "País (BR). Pode ser vazio por erro de migração → NULL"
+  - name: name1
+    type: STRING
+    nullable: true
+    sap_field: NAME1
+    description: "Razão social, 35 chars CHAR. Espaços à direita removidos."
+  - name: name2
+    type: STRING
+    nullable: true
+    sap_field: NAME2
+    description: "Complemento de nome. Vazio → NULL."
+  - name: ort01
+    type: STRING
+    nullable: true
+    sap_field: ORT01
+    description: "Cidade."
+  - name: pstlz
+    type: STRING
+    nullable: true
+    sap_field: PSTLZ
+    description: "CEP. Pode ter 7 ou 9 dígitos por erro de entrada."
+  - name: stras
+    type: STRING
+    nullable: true
+    sap_field: STRAS
+    description: "Logradouro."
+  - name: stcd1
+    type: STRING
+    nullable: true
+    sap_field: STCD1
+    description: "CNPJ. Pode estar vazio ou com formatação de sistema legado."
+  - name: stcd2
+    type: STRING
+    nullable: true
+    sap_field: STCD2
+    description: "CPF. Vazio → NULL."
+  - name: loevm
+    type: STRING
+    nullable: true
+    sap_field: LOEVM
+    description: "Flag SAP original. 'X'=excluir, ''=ativo. Armadilha: ' ' (espaço) deve ser tratado como ''."
+  - name: erdat
+    type: DATE
+    nullable: true
+    sap_field: ERDAT
+    description: "Data de criação (DATS → DATE). '00000000' → NULL."
+  - name: ernam
+    type: STRING
+    nullable: true
+    sap_field: ERNAM
+    description: "Usuário criador."
+  - name: telf1
+    type: STRING
+    nullable: true
+    sap_field: TELF1
+    description: "Telefone. Pode ser vazio."
+  - name: spras
+    type: STRING
+    nullable: true
+    sap_field: SPRAS
+    description: "Idioma (P=português)."
+  - name: ktokd
+    type: STRING
+    nullable: true
+    sap_field: KTOKD
+    description: "Grupo de contas (0001, 0002)."
+  - name: is_logically_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_LOEVM
+    description: "true quando LOEVM='X'. Cliente marcado para exclusão no SAP mas ainda presente."
+  - name: is_deleted
+    type: BOOLEAN
+    nullable: false
+    sap_field: derived_from_CDC._op
+    description: "true quando o registro foi excluído fisicamente via CDC (_op='D')."
+  - name: deleted_at
+    type: TIMESTAMP
+    nullable: true
+    description: "Timestamp da exclusão física. NULL quando is_deleted=false."
+  - name: _silver_updated_at
+    type: TIMESTAMP
+    nullable: false
+    description: "Última vez que esta linha foi processada pelo MERGE silver."
+
+quality_rules:
+  - id: mandt_is_100
+    expression: "mandt = '100'"
+    description: "Silver filtra mandante principal. MANDT='200' nunca deve aparecer."
+  - id: kunnr_not_null
+    expression: "kunnr IS NOT NULL AND LENGTH(TRIM(kunnr)) > 0"
+  - id: erdat_not_sap_zero
+    expression: "erdat IS NULL OR erdat BETWEEN DATE '2010-01-01' AND DATE '2030-12-31'"
+    description: "'00000000' mapeado para NULL — não deve aparecer como data."
+  - id: loevm_no_raw_space
+    expression: "loevm IS NULL OR loevm IN ('X', '')"
+    description: "Espaço (' ') deve ter sido normalizado para '' pela silver."
+  - id: deleted_consistency
+    expression: "is_deleted = false OR deleted_at IS NOT NULL"
+    description: "Se is_deleted=true, deleted_at deve estar preenchido."
